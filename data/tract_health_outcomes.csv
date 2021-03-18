@@ -1,4 +1,4 @@
-countyname,locationid,cancer_except_skin,chronic_kidney_disease,copd,coronary_heart_disease,current_smoking,diabetes,obesity
+countyname,locationid,cancer_except_skin_outcome,chronic_kidney_disease_outcome,copd_outcome,coronary_heart_disease_outcome,current_smoking_outcome,diabetes_outcome,obesity_outcome
 Albemarle,51003010100,8.2,2.8,7.2,7,14.8,10,28.1
 Albemarle,51003010201,7.3,2.4,5.6,5.5,13.1,8.5,27.3
 Albemarle,51003010202,9.1,2.8,6,6.8,10.7,9.5,26.3

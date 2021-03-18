@@ -129,6 +129,22 @@ tract_data_s %>%
 # Pull BRHD Life Expectancies for the Region ------------------------------
 # https://public.tableau.com/profile/thomas.jefferson.health.district#!/vizhome/MAPP2Health-ReduceHealthDisparitiesandImproveAccesstoCarePriorityIndicators/MAPPPriorityThree
 ## ^^ Pulling from this is not working. Will likely have to email Guleer 
+brhd_le <- read_excel("../data/brhd_le.xlsx")
+
+brhd_le <- 
+ccodes %>%
+  separate(
+    name,
+    c("county", NA),
+    sep = " "
+  ) %>%
+  select(-id) %>%
+left_join(brhd_le) %>%
+separate(tractname, c(NA, NA, "tractnum"), sep =" " ) %>% 
+mutate(
+  tractnum  = str_sub(paste0( "000", str_replace_all(  as.character(str_trim(format(as.numeric(tractnum), nsmall = 2))), "\\.", "")), -6, -1),
+  GEOID = paste0("51", code, tractnum)
+  ) 
 
 
 
@@ -241,7 +257,7 @@ tract_outcomes <-
 covid_risk_outcomes %>%
   select(countyname, locationid,  short_question_text, data_value)  %>%
   mutate(
-    short_question_text = str_replace_all(str_replace_all(str_to_lower(short_question_text), "\\(|\\)", ""), " ", "_")
+    short_question_text = paste0(str_replace_all(str_replace_all(str_to_lower(short_question_text), "\\(|\\)", ""), " ", "_"), "_outcome") 
   ) %>%
   spread(short_question_text, data_value)
 
@@ -253,11 +269,19 @@ write_csv(tract_outcomes, "../data/tract_health_outcomes.csv")
 tract_prioritization_facts <- 
 tract_19 %>%
   select(GEOID, contains("E")) %>%
-  select(-NAME, -othraceM, -year) %>%
+  select(-NAME, -othraceM, -year, -whiteM) %>%
   left_join(
+    
     tract_data_poverty %>%
       select(GEOID, povrateE, cpovrateE)
+    
   ) %>% left_join(
+    
+    brhd_le %>%
+      select(GEOID, lifeexpBRHD = lifeexp)
+    
+       ) %>%
+  left_join(
     tract_expectancy %>%
       select(GEOID, lifeexpCDC = life_expectancy)
   ) %>%
@@ -269,22 +293,16 @@ left_join(
   select(countyname, GEOID, everything()) %>%
   filter(
 
-    !GEOID %in% c(
-      "51003010903",  # University area in Albemarle
-      "51003010902"   # UVA alderman road area
- #     "51540000202"   # Rugby Road, the corner & 10th & Page — should probably keep this one
+    !GEOID %in% c(      # Censoring per Recommendation by BRHD Life Expectancy estimates
+      "51003010901",   
+      "51003010903",  
+      "51003010902",  
+      "51003010202"   
       )
   )
 
 
 write_csv(tract_prioritization_facts, "../data/tract_dimensions.csv")
-
-
-
-  
-
-
-
 
 
 
