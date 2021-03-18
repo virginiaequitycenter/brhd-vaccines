@@ -1,0 +1,98 @@
+---
+title: "Tract Vaccination Priority Rankings"
+author: "Sam Powers"
+date: "3/18/2021"
+#output: html_document
+header-includes:
+ - \usepackage[default]{sourcesanspro}
+ - \usepackage[T1]{fontenc}
+mainfont: SourceSansPro
+fontsize: 11pt
+output: 
+  html_document:
+    df_print: kable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(extrafont)
+library(leaflet)
+library(tidycensus)
+library(RColorBrewer)
+loadfonts
+
+load("geo_rankings.rdata")
+tract_dimensions <- read_csv("../data/tract_dimensions.csv") %>%
+  mutate(GEOID = as.character(GEOID))
+
+
+```
+
+## Priority Scoring Table 
+
+``` {r}
+rankings_geo %>%
+  as_tibble() %>%
+  select(NAME, Score = overall, `Black Residents` = blackE, `Latinx Residents`= ltnxE, `Poverty` = povrateE, `Life Expectancy` = lifeexpBRHD, `Adverse Health Outcomes` = health_outcomes ) 
+```
+
+
+## Raw numbers 
+
+``` {r}
+
+tract_dimensions %>%
+  left_join(rankings_geo %>%
+              select(GEOID, overall, NAME)
+            )  %>%
+  arrange(overall) %>%
+  select(NAME, overall, everything(), -GEOID, -countyname, -geometry,
+         -whiteE, -asianE, -multiE, -othraceE, -lifeexpCDC, -cpovrateE)
+
+
+
+```
+
+
+
+## Mapping 
+
+```{r}
+
+mycol <- colorRampPalette(brewer.pal(8, "YlGnBu"))(10)
+pal <- colorNumeric(palette = mycol,
+                    domain = rankings_geo$overall)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  # addTiles() %>% # to show streets more prominently
+  addPolygons(data = rankings_geo, 
+              fillColor = ~pal(rankings_geo$overall), 
+              fillOpacity = 0.5, 
+              color = "white",
+              weight = 2, 
+              smoothFactor = 0.2, 
+              popup = paste0("Priority Score: ",  round(rankings_geo$overall, 2), "<br>",
+                             rankings_geo$NAME, "<br>"
+                             ),
+              
+              highlight = highlightOptions(
+                weight = 5,
+                fillOpacity = 0.7,
+                bringToFront = TRUE)
+              ) %>%
+  addLegend(pal = pal, 
+            values = rankings_geo$overall, 
+            position = "bottomright", 
+            opacity = 0.5,
+            title = "Vacination Priority Index")
+
+```
+
+
+
+
+
+
