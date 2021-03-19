@@ -74,7 +74,7 @@ rankings_geo_indigenous %>%
 
 The map visualizes the composite score from the table above to ease identification of census tract locations. With a list of addresses for current vaccination distribution sites, we could add these to the map for easier visualization.
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE,out.width = "90%"}
 
 mycol <- colorRampPalette(brewer.pal(8, "YlGnBu"))(10)
 pal <- colorNumeric(palette = mycol,
