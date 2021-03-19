@@ -241,12 +241,107 @@ save(rankings_geo, file = "geo_rankings.Rdata")
 
 
 
+# Put Indigenous back into the Ranking ------------------------------------
+
+normed_metrics <- 
+  tract_dimensions %>%
+  select(GEOID,
+         blackE,
+         indigE,  # put indigenous back in it 
+         ltnxE,
+         povrateE,
+         lifeexpBRHD  # this one needs to be reversed
+  ) %>%
+  mutate(across(-GEOID,
+                ~ (.x - min(.x)) / (max(.x) - min(.x)))) %>%
+  mutate(lifeexpBRHD = 1 - lifeexpBRHD) %>%
+  left_join(
+    normed_outcomes %>%
+      select(GEOID, 
+             health_outcomes = perc_atleast_one
+      )
+  )
 
 
-  
+principal(normed_metrics[,-1], nfactors=2, rotate="none", scores=TRUE)
+# there is definitely a black, life expectancy, & health outcomes dimension and then a latinx & poverty rate w/ good health outcomes 
+# dimension that seem perpendicular 
+# But based on theory we want to weight those all the same, so I think we are probably good to go to just add them up together
+
+final_rankings_indigenous  <- 
+  normed_metrics %>%
+  mutate(overall = blackE + ltnxE + indigE + povrateE + lifeexpBRHD + health_outcomes ,
+         overall_no_outcomes = blackE + ltnxE + indigE+ povrateE + lifeexpBRHD) %>%
+  arrange(
+    desc(overall_no_outcomes)
+  ) %>%
+  mutate(rank_no_outcomes = 1:n()) %>%
+  arrange(
+    desc(overall)
+  ) %>%
+  mutate(rank_outcomes = 1:n())  
+
+max(final_rankings_indigenous$overall) # 3.81
+min(final_rankings_indigenous$overall) # 0.448
+# not quite the variance we would hope for, but this works! 
+(max(final_rankings_indigenous$overall) - min(final_rankings_indigenous$overall))/6  # uses 0.5604 of its possible range
+
+
+max(final_rankings_indigenous$overall_no_outcomes) # 3.074
+min(final_rankings_indigenous$overall_no_outcomes) # 0.2138
+(max(final_rankings_indigenous$overall_no_outcomes)  - min(final_rankings_indigenous$overall_no_outcomes))/5 # uses 0.572 of its possible range
+
+cor(final_rankings_indigenous$overall, final_rankings_indigenous$overall_no_outcomes, method = "spearman") 
+# They correlate at 0.9308
+
+write_csv(final_rankings_indigenous, path = "final_rankings_indigenous.csv")
 
 
 
+
+# Add in Geo with indigenous ----------------------------------------------
+
+ccodes <- read_csv("../data/county_codes.csv") %>%
+  filter(
+    grepl(
+      "Charlottesville|Albemarle|Fluvanna|Greene|Louisa|Nelson",
+      name
+    )
+  )
+
+region <- ccodes$code
+
+tract_geos <- get_acs(geography = "tract",
+                      variables = "DP05_0001",
+                      state = "VA", 
+                      county = region,
+                      survey = "acs5", 
+                      year = 2019, 
+                      output = "wide",
+                      geometry = TRUE)
+
+rankings_geo_indigenous <- 
+  final_rankings_indigenous %>%
+  mutate(GEOID = as.character(GEOID)) %>%
+  left_join(tract_geos) %>%
+  st_as_sf()
+
+save(rankings_geo_indigenous, file = "geo_rankings_indigenous.Rdata")
+
+
+
+
+
+
+tibble(
+GEOID = final_rankings_indigenous$GEOID,
+indigenous = final_rankings_indigenous$rank_outcomes
+) %>%
+  left_join(
+    final_rankings %>%
+      select(GEOID, non_indigenous = rank_outcomes)
+  ) %>%
+  View()
 
 
 

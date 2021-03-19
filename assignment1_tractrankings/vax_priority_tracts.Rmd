@@ -32,12 +32,29 @@ library(rmarkdown)
 library(DT)
 loadfonts
 
-load("geo_rankings.rdata")
+load("geo_rankings_indigenous.Rdata")
 tract_dimensions <- read_csv("../data/tract_dimensions.csv") %>%
   mutate(GEOID = as.character(GEOID))
 
 
 ```
+
+
+## This Report
+This report presents a composite score to help prioritize census tracts for vaccination according to their alignment with the BRHD vaccination equity strategy priorities. 
+
+## BRHD Census Track Vaccination Priority Score
+The [BRHD Vaccination Equity Strategy](https://www.vdh.virginia.gov/content/uploads/sites/196/2021/03/COVID-19-Vaccination-Equity-Strategy-BRHD.pdf) "prioritize[s] vaccination events in neighborhoods and apartment buildings with compounding factors including, at a minimum, low life expectancy, poverty and race and making vaccine available to anyone who lives in that neighborhood." Going beyond that minimum, we include prioritizing populations with medical conditions that increase risk of severe illness from the virus that causes COVID-19. This means we have to balance the following 6 track-level variables when determining vaccination priority:
+
+* % Population Black
+* % Population Indigenous American
+* % Population Latinx
+* % Population in Poverty
+* Tract-level Life Expectancy
+* % Population with at-risk health outcomes [CDC](https://www.cdc.gov/coronavirus/2019-ncov/need-extra-precautions/people-with-medical-conditions.html)
+
+Our statistical analyses of these six variables suggest it is reasonable to combine them into one composite score. In other words, we created one summary variable that, when orderd, ranks tracts in terms of their priority on the six equity variables. We present that composite score below. 
+
 
 ## Priority Tract Scoring Table 
 The following table provides the overall index, scoring tracts by the percent of residents who are Black, who are Hispanic or Latinx, and who are experiencing poverty along with the average life expectancy of residents within the tract and the overall prevalance of health outcomes identified by CDC as risk factors: cancer (except skin cancer), chronic kidney disease, chronic obstructive pulmonary disease, diabetes, obesity, and smoking. 
@@ -45,9 +62,9 @@ The following table provides the overall index, scoring tracts by the percent of
 The indicator values provided in the table are normed via a min-max transformation $$I - \frac{x - min(x)}{max(x) - min(x)}$$. The initial estimated values are provided in a second table below.
 
 ``` {r}
-rankings_geo %>%
+rankings_geo_indigenous %>%
   as_tibble() %>%
-  select(NAME, Score = overall, `Black Residents` = blackE, `Latinx Residents`= ltnxE, `Poverty` = povrateE, `Life Expectancy` = lifeexpBRHD, `Adverse Health Outcomes` = health_outcomes )  %>%
+  select(NAME, Score = overall, `Black Residents` = blackE, `Latinx Residents`= ltnxE, `Indigenous Residents` = indigE, `Poverty` = povrateE, `Life Expectancy` = lifeexpBRHD, `Adverse Health Outcomes` = health_outcomes )  %>%
      mutate(across(where(is.numeric), ~round(.x, 2))) %>%
   datatable()
 ```
@@ -61,20 +78,20 @@ The map visualizes the composite score from the table above to ease identificati
 
 mycol <- colorRampPalette(brewer.pal(8, "YlGnBu"))(10)
 pal <- colorNumeric(palette = mycol,
-                    domain = rankings_geo$overall)
+                    domain = rankings_geo_indigenous$overall)
 
 leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   # addTiles() %>% # to show streets more prominently
-  addPolygons(data = rankings_geo, 
-              fillColor = ~pal(rankings_geo$overall), 
+  addPolygons(data = rankings_geo_indigenous, 
+              fillColor = ~pal(rankings_geo_indigenous$overall), 
               fillOpacity = 0.5, 
               color = "white",
               weight = 2, 
               
               smoothFactor = 0.2, 
-              popup = paste0("Priority Score: ",  round(rankings_geo$overall, 2), "<br>",
-                             rankings_geo$NAME, "<br>"
+              popup = paste0("Priority Score: ",  round(rankings_geo_indigenous$overall, 2), "<br>",
+                             rankings_geo_indigenous$NAME, "<br>"
                              ),
               
               highlight = highlightOptions(
@@ -83,7 +100,7 @@ leaflet() %>%
                 bringToFront = TRUE)
               ) %>%
   addLegend(pal = pal, 
-            values = rankings_geo$overall, 
+            values = rankings_geo_indigenous$overall, 
             position = "bottomright", 
             opacity = 0.5,
             title = "Vacination Priority Index")
@@ -97,16 +114,16 @@ The measures used to generate the composite score are provided below for referen
 ``` {r, message = FALSE}
 
 tract_dimensions %>%
-  left_join(rankings_geo %>%
+  left_join(rankings_geo_indigenous %>%
               select(GEOID, overall, NAME)
             )  %>%
   arrange(-overall) %>%
-  select(NAME, overall, everything(), -GEOID, -countyname, -geometry,
+  select(`County Name` = countyname, NAME, overall, everything(), -GEOID, -geometry,
          -whiteE, -asianE, -multiE, -othraceE, -lifeexpCDC, -cpovrateE) %>%
+  separate(NAME, c(NA, "Tract", NA), sep = "Census Tract|,") %>%
  rename_with( ~str_to_sentence(str_replace_all(str_replace_all(.x, "_outcome", ""), "_", " ")) , contains("outcome")
         ) %>%
   rename(
-    Tract = NAME, 
     `Priority Index` = overall,
     `Total Pop` = totalpopE,
     `% Black` = blackE,
