@@ -20,6 +20,9 @@ library(extrafont)
 library(leaflet)
 library(tidycensus)
 library(RColorBrewer)
+library(knitr)
+library(rmarkdown)
+library(DT)
 loadfonts
 
 load("geo_rankings.rdata")
@@ -34,7 +37,9 @@ tract_dimensions <- read_csv("../data/tract_dimensions.csv") %>%
 ``` {r}
 rankings_geo %>%
   as_tibble() %>%
-  select(NAME, Score = overall, `Black Residents` = blackE, `Latinx Residents`= ltnxE, `Poverty` = povrateE, `Life Expectancy` = lifeexpBRHD, `Adverse Health Outcomes` = health_outcomes ) 
+  select(NAME, Score = overall, `Black Residents` = blackE, `Latinx Residents`= ltnxE, `Poverty` = povrateE, `Life Expectancy` = lifeexpBRHD, `Adverse Health Outcomes` = health_outcomes )  %>%
+     mutate(across(where(is.numeric), ~round(.x, 2))) %>%
+  datatable()
 ```
 
 
@@ -46,11 +51,24 @@ tract_dimensions %>%
   left_join(rankings_geo %>%
               select(GEOID, overall, NAME)
             )  %>%
-  arrange(overall) %>%
+  arrange(-overall) %>%
   select(NAME, overall, everything(), -GEOID, -countyname, -geometry,
-         -whiteE, -asianE, -multiE, -othraceE, -lifeexpCDC, -cpovrateE)
-
-
+         -whiteE, -asianE, -multiE, -othraceE, -lifeexpCDC, -cpovrateE) %>%
+ rename_with( ~str_to_sentence(str_replace_all(str_replace_all(.x, "_outcome", ""), "_", " ")) , contains("outcome")
+        ) %>%
+  rename(
+    Tract = NAME, 
+    `Priority Index` = overall,
+    `Total Pop` = totalpopE,
+    `% Black` = blackE,
+    `% Indigenous` = indigE,
+    `% Latinx` = ltnxE,
+    `% Poverty` = povrateE,
+    `Life Expectancy` = lifeexpBRHD
+  ) %>%
+   mutate(across(where(is.numeric), ~round(.x, 2))) %>%
+  datatable()
+  
 
 ```
 
@@ -58,7 +76,7 @@ tract_dimensions %>%
 
 ## Mapping 
 
-```{r}
+```{r, warnings = FALSE}
 
 mycol <- colorRampPalette(brewer.pal(8, "YlGnBu"))(10)
 pal <- colorNumeric(palette = mycol,
