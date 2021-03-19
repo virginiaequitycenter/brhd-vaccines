@@ -68,7 +68,7 @@ fa(step1_dat, nfactors=2, rotate="promax", fm="ml", SMC=TRUE)
 step2_dat <- 
   tract_dimensions %>%
   select(blackE, indigE, ltnxE, povrateE, lifeexpCDC) %>%
-  filter(!is.na(lifeexpCDC))
+  filter(!is.na(lifeexpCDC)) # too impatint to try FIML. Going to use complete cases to develop
 
 step2_eig <- eigen(cor(step2_dat))$values
 step2_eig/sum(step2_eig)
@@ -95,13 +95,15 @@ tract_dimensions %>%
 outcome_eig <- eigen(cor(outcomes))$values
 outcome_eig/sum(outcome_eig) # 71.8% of the variance is in the first component. This should be fine to load together
 
-scree(outcomes) ## there might be two factors in here
+scree(outcomes) ## there might be two factors in here. also there are some weird pattens. Factor analysis is out. 
+alpha(outcomes) ## This alpha is high. I think we definitely can condense these. 
 
 # maybe make a principal component out of them 
 pca.outcomes <-
 principal(outcomes, nfactors=1, rotate="none", scores=TRUE) # This gets 72% of the variance. Cancer is not high, but its there. 
+pca.outcomes
 
-principal(outcomes, nfactors=2, rotate="none", scores=TRUE) # This is a decent bit of crossed loadings
+principal(outcomes, nfactors=2, rotate="none", scores=TRUE) # This is decent but there are crossed loadings [smoking & cancer]
 
 
 # Maybe we assume independence between the diseases and look at probability of having at least one co-morbidity?
@@ -110,11 +112,11 @@ principal(outcomes, nfactors=2, rotate="none", scores=TRUE) # This is a decent b
 prob_atleast_one <-
 tract_dimensions %>%
   select(GEOID, contains("outcome")) %>%
-  mutate(across(contains("outcome"), ~1 - .x/100)) %>%
+  mutate(across(contains("outcome"), ~1 - .x/100)) %>% # Probability of not having the comorbidity
   gather(outcome, prob_not, -GEOID) %>%
-  group_by(GEOID) %>%
-  summarize(prob_none = prod(prob_not)) %>%
-  mutate(perc_atleast_one = (1 - prob_none) *100) 
+  group_by(GEOID) %>% 
+  summarize(prob_none = prod(prob_not)) %>%            # Product of independent probabilities = prob(no comorbidities)
+  mutate(perc_atleast_one = (1 - prob_none) *100)      # 1 - P(none) = p(1+)
   
 combine_outcomes <- 
 tibble(
@@ -135,11 +137,12 @@ combine_outcomes %>%
   ) %>%
   select(GEOID, pca, perc_atleast_one) 
 
-cor(normed_outcomes$pca, normed_outcomes$perc_atleast_one)
+cor(normed_outcomes$pca, normed_outcomes$perc_atleast_one, method = "spearman") # 0.9498
 
 normed_outcomes %>%
 arrange(pca) 
 # They generally move in the same direction but they do not rank counties in exactly the same way. 
+# There is a weird trend of decreasing perc_atleast_one until a point then it jumps and then decreases again 
 
 var(normed_outcomes$pca)
 mean(normed_outcomes$pca) # this is centered high
@@ -169,7 +172,8 @@ tract_dimensions %>%
 
 
 principal(normed_metrics[,-1], nfactors=2, rotate="none", scores=TRUE)
-# there is definitely a black, life expectancy, & health outcomes dimension and then a latinx & poverty rate dimension that seem oblique. 
+# there is definitely a black, life expectancy, & health outcomes dimension and then a latinx & poverty rate w/ good health outcomes 
+# dimension that seem perpendicular 
 # But based on theory we want to weight those all the same, so I think we are probably good to go to just add them up together
 
 final_rankings  <- 
