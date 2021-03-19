@@ -236,7 +236,13 @@ unique(health_outcomes$measure)
 ## "Current Smoking"
 ## "Diabetes"
 
-at_risk_outcomes <- c("Cancer (except skin)", "Chronic Kidney Disease", "COPD", "Coronary Heart Disease", "Obesity", "Current Smoking", "Diabetes")
+at_risk_outcomes <- c("Cancer (except skin)", 
+                      "Chronic Kidney Disease", 
+                      "COPD", 
+                      "Coronary Heart Disease", 
+                      "Obesity", 
+                      "Current Smoking", 
+                      "Diabetes")
 
 covid_risk_outcomes <- 
 health_outcomes %>%

@@ -71,6 +71,7 @@ leaflet() %>%
               fillOpacity = 0.5, 
               color = "white",
               weight = 2, 
+              
               smoothFactor = 0.2, 
               popup = paste0("Priority Score: ",  round(rankings_geo$overall, 2), "<br>",
                              rankings_geo$NAME, "<br>"
