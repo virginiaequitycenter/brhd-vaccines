@@ -1,6 +1,6 @@
 ---
 title: "Tract Vaccination Priority Rankings"
-author: "Sam Powers"
+author: "Sam Powers, Michele Claibourn"
 date: "3/18/2021"
 #output: html_document
 header-includes:
@@ -12,6 +12,13 @@ output:
   html_document:
     df_print: kable
 ---
+
+<style>
+.leaflet {
+    margin: auto;
+}
+</style>
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -32,7 +39,10 @@ tract_dimensions <- read_csv("../data/tract_dimensions.csv") %>%
 
 ```
 
-## Priority Scoring Table 
+## Priority Tract Scoring Table 
+The following table provides the overall index, scoring tracts by the percent of residents who are Black, who are Hispanic or Latinx, and who are experiencing poverty along with the average life expectancy of residents within the tract and the overall prevalance of health outcomes identified by CDC as risk factors: cancer (except skin cancer), chronic kidney disease, chronic obstructive pulmonary disease, diabetes, obesity, and smoking. 
+
+The indicator values provided in the table are normed via a min-max transformation $$I - \frac{x - min(x)}{max(x) - min(x)}$$. The initial estimated values are provided in a second table below.
 
 ``` {r}
 rankings_geo %>%
@@ -43,9 +53,47 @@ rankings_geo %>%
 ```
 
 
-## Raw numbers 
+## Priority Tract Scoring Map 
 
-``` {r}
+The map visualizes the composite score from the table above to ease identification of census tract locations. With a list of addresses for current vaccination distribution sites, we could add these to the map for easier visualization.
+
+```{r, warning = FALSE, message = FALSE}
+
+mycol <- colorRampPalette(brewer.pal(8, "YlGnBu"))(10)
+pal <- colorNumeric(palette = mycol,
+                    domain = rankings_geo$overall)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  # addTiles() %>% # to show streets more prominently
+  addPolygons(data = rankings_geo, 
+              fillColor = ~pal(rankings_geo$overall), 
+              fillOpacity = 0.5, 
+              color = "white",
+              weight = 2, 
+              smoothFactor = 0.2, 
+              popup = paste0("Priority Score: ",  round(rankings_geo$overall, 2), "<br>",
+                             rankings_geo$NAME, "<br>"
+                             ),
+              
+              highlight = highlightOptions(
+                weight = 5,
+                fillOpacity = 0.7,
+                bringToFront = TRUE)
+              ) %>%
+  addLegend(pal = pal, 
+            values = rankings_geo$overall, 
+            position = "bottomright", 
+            opacity = 0.5,
+            title = "Vacination Priority Index")
+```
+
+
+## Composite Indicator Values Table 
+
+The measures used to generate the composite score are provided below for reference.
+
+``` {r, message = FALSE}
 
 tract_dimensions %>%
   left_join(rankings_geo %>%
@@ -72,42 +120,15 @@ tract_dimensions %>%
 
 ```
 
+## Data Sources
+
+* Percent of residents who are Black: American Community Survey 5-year estimates, 2015-2019, Table DP05
+* Percent of residents who are Hispanic or Latinx: American Community Survey 5-year estimates, 2015-2019, Table DP05
+* Percent of residents experincing poverty: American Community Survey 5-year estimates, 2015-2019, Table S1701
+* Average Life Expectancy: Blue Ridge Health District estimates 
+* Health prevalence outcomes: [CDC Places estimates](https://chronicdata.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Census-Tract-D/cwsq-ngmh)
 
 
-## Mapping 
-
-```{r, warnings = FALSE}
-
-mycol <- colorRampPalette(brewer.pal(8, "YlGnBu"))(10)
-pal <- colorNumeric(palette = mycol,
-                    domain = rankings_geo$overall)
-
-
-leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  # addTiles() %>% # to show streets more prominently
-  addPolygons(data = rankings_geo, 
-              fillColor = ~pal(rankings_geo$overall), 
-              fillOpacity = 0.5, 
-              color = "white",
-              weight = 2, 
-              smoothFactor = 0.2, 
-              popup = paste0("Priority Score: ",  round(rankings_geo$overall, 2), "<br>",
-                             rankings_geo$NAME, "<br>"
-                             ),
-              
-              highlight = highlightOptions(
-                weight = 5,
-                fillOpacity = 0.7,
-                bringToFront = TRUE)
-              ) %>%
-  addLegend(pal = pal, 
-            values = rankings_geo$overall, 
-            position = "bottomright", 
-            opacity = 0.5,
-            title = "Vacination Priority Index")
-
-```
 
 
 

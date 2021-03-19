@@ -1,20 +1,20 @@
-## ---------------------------
-## Script name: tract_rankings.R
-##
-## Author:Sam Powers
-## Date Created: 2021-03-18
-##
-## ---------------------------
-## Purpose of script: To make a tract ranking metric
-##   
-##
-## ---------------------------
-## set working directory
+---
+title: "Tract Score Composite Development"
+author: "Sam Powers"
+date: "3/18/2021"
+#output: html_document
+header-includes:
+ - \usepackage[default]{sourcesanspro}
+ - \usepackage[T1]{fontenc}
+mainfont: SourceSansPro
+fontsize: 11pt
+output: 
+  html_document:
+    df_print: kable
+---
 
-setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/brhd-vaccines/assignment1_tractrankings")
-
-## ---------------------------
-## load up the packages we will need:
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(extrafont)
@@ -23,29 +23,22 @@ loadfonts() ## Load in the fonts I want to use
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 select <- dplyr::select
+```
 
-## ---------------------------
+
 ## Implementation Plan
 
-# 1. Generate an index and ranking using just the poverty, race as defined above (with equity atlas code), and 
-# life expectancy using BRHD values (not sure that these are programmatically downloadable, though)
+### 1. Generate an index and ranking using just the poverty, race and life expectancy using BRHD values 
 
-# 2. But then again using the more recent USASLEEP values -- just to make sure it doesn't make a marked difference -- if not, use 1
-
-# 3. And then compare this with a version that incorporates additional health prevalence estimates -- here it will be important to not overweight these -- 
-# so in my head, these are first combined and then included with life expectancy, race, and poverty.
-
-# If there's, again, no marked difference, I'd stick with 1 (and note that 3 was tried); if there is a marked difference, I'd report both.
-
-## ---------------------------
+```{r}
 ## read in data:
 
 tract_dimensions <- read_csv("../data/tract_dimensions.csv")
 
 describe(tract_dimensions)
-tract_dimensions$indigE
+# little variance in Indigenous pop
 
-# Step 1: Poverty,  Race,  BRHD LE ------------------------------------------------
+# Step 1: Poverty,  Race,  BRHD LE 
 step1_dat <- 
 tract_dimensions %>%
   select(blackE, indigE, ltnxE, povrateE, lifeexpBRHD)
@@ -62,9 +55,13 @@ fa(step1_dat, nfactors=1, rotate="promax", fm="ml", SMC=TRUE)
 
 fa(step1_dat, nfactors=2, rotate="promax", fm="ml", SMC=TRUE)
 # this is clearly overfit. 
+```
 
 
-# Step 2: Poverty,  Race,  CDC LE -----------------------------------------
+
+### Step 2: Compare against the life expectancy values from USASLEEP 
+
+```{r}
 step2_dat <- 
   tract_dimensions %>%
   select(blackE, indigE, ltnxE, povrateE, lifeexpCDC) %>%
@@ -84,9 +81,13 @@ fa(step2_dat, nfactors=2, rotate="promax", fm="ml", SMC=TRUE)
 # this is clearly overfit. 
 
 # I would say there is a solid argument that these are all part of one factor
+```
 
-# Step 3: Poverty,  Race,  BRHD LE,  Health Outcomes ----------------------
+### Step 3: Incorporate health outcomes
 
+Exploration of health outcomes
+
+```{r}
 # look at health outcomes 
 outcomes <- 
 tract_dimensions %>%
@@ -150,7 +151,11 @@ mean(normed_outcomes$pca) # this is centered high
 var(normed_outcomes$perc_atleast_one) # This has more variance
 mean(normed_outcomes$perc_atleast_one) # This is centered pretty well
 
-# Create the final normed metric ------------------------------------------
+```
+
+### 4: Create final index
+
+```{r}
 normed_metrics <- 
 tract_dimensions %>%
   select(GEOID,
@@ -201,60 +206,4 @@ min(final_rankings$overall_no_outcomes) # 0.07239
 
 cor(final_rankings$overall, final_rankings$overall_no_outcomes, method = "spearman") 
 # They correlate at 0.9239
-
-
-write_csv(final_rankings, path = "final_rankings.csv")
-
-
-
-# Add in geometry for graphing purposes -----------------------------------
-library(tidycensus)
-library(sf)
-
-ccodes <- read_csv("../data/county_codes.csv") %>%
-  filter(
-    grepl(
-      "Charlottesville|Albemarle|Fluvanna|Greene|Louisa|Nelson",
-      name
-    )
-  )
-
-region <- ccodes$code
-
-tract_geos <- get_acs(geography = "tract",
-                      variables = "DP05_0001",
-                      state = "VA", 
-                      county = region,
-                      survey = "acs5", 
-                      year = 2019, 
-                      output = "wide",
-                      geometry = TRUE)
-
-rankings_geo <- 
-final_rankings %>%
-   mutate(GEOID = as.character(GEOID)) %>%
-  left_join(tract_geos) %>%
-  st_as_sf()
-
-save(rankings_geo, file = "geo_rankings.Rdata")
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
