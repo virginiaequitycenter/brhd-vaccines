@@ -1,7 +1,7 @@
 ---
-title: "Tract Vaccination Priority Rankings"
+title: "Tract-Level Composite Scores"
 author: "Sam Powers, Michele Claibourn"
-date: "3/18/2021"
+date: "3/21/2021"
 #output: html_document
 header-includes:
  - \usepackage[default]{sourcesanspro}
@@ -11,6 +11,8 @@ fontsize: 11pt
 output: 
   html_document:
     df_print: kable
+    toc: true
+    toc_float: true
 ---
 
 <style>
@@ -21,13 +23,14 @@ output:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(extrafont)
 library(leaflet)
 library(tidycensus)
 library(RColorBrewer)
 library(knitr)
+library(kableExtra)
 library(rmarkdown)
 library(DT)
 loadfonts
@@ -40,49 +43,50 @@ tract_dimensions <- read_csv("../data/tract_dimensions.csv") %>%
 ```
 
 
-## This Report
-This report presents a composite score to help prioritize census tracts for vaccination according to their alignment with the BRHD vaccination equity strategy priorities. 
-
-## BRHD Census Track Vaccination Priority Score
-The [BRHD Vaccination Equity Strategy](https://www.vdh.virginia.gov/content/uploads/sites/196/2021/03/COVID-19-Vaccination-Equity-Strategy-BRHD.pdf) "prioritize[s] vaccination events in neighborhoods and apartment buildings with compounding factors including, at a minimum, low life expectancy, poverty and race and making vaccine available to anyone who lives in that neighborhood." Going beyond that minimum, we include prioritizing populations with medical conditions that increase risk of severe illness from the virus that causes COVID-19. This means we have to balance the following 6 track-level variables when determining vaccination priority:
-
-* % Population Black
-* % Population Indigenous American
-* % Population Latinx
-* % Population in Poverty
-* Tract-level Life Expectancy
-* % Population with at-risk health outcomes [CDC](https://www.cdc.gov/coronavirus/2019-ncov/need-extra-precautions/people-with-medical-conditions.html)
-
-Our statistical analyses of these six variables suggest it is reasonable to combine them into one composite score. In other words, we created one summary variable that, when orderd, ranks tracts in terms of their priority on the six equity variables. We present that composite score below. 
-
-
-## Priority Tract Scoring Table 
-The following table provides the overall index, scoring tracts by the percent of residents who are Black, who are Hispanic or Latinx, and who are experiencing poverty along with the average life expectancy of residents within the tract and the overall prevalance of health outcomes identified by CDC as risk factors: cancer (except skin cancer), chronic kidney disease, chronic obstructive pulmonary disease, diabetes, obesity, and smoking. 
-
-The indicator values provided in the table are normed via a min-max transformation $$I - \frac{x - min(x)}{max(x) - min(x)}$$. The initial estimated values are provided in a second table below.
-
-``` {r}
-rankings_geo_indigenous %>%
-  as_tibble() %>%
-  select(NAME, Score = overall, `Black Residents` = blackE, `Latinx Residents`= ltnxE, `Indigenous Residents` = indigE, `Poverty` = povrateE, `Life Expectancy` = lifeexpBRHD, `Adverse Health Outcomes` = health_outcomes )  %>%
-     mutate(across(where(is.numeric), ~round(.x, 2))) %>%
-  datatable()
+```{r}
+tract_dimensions %>%
+  left_join(rankings_geo_indigenous %>%
+              select(GEOID, overall, NAME)
+            )  %>%
+  select(countyname, NAME, overall) %>% 
+  arrange(-overall) %>%
+  filter(overall > 2) %>% 
+  separate(NAME, c(NA, "Tract", NA), sep = "Census Tract|,") %>%
+  rename(Locality = countyname, Composite = overall) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2))) %>%
+  kbl() %>% 
+  kable_paper("hover", full_width = F, position = "float_right") %>% 
+  row_spec(1:3, background = brewer.pal(8, "Purples")[7]) %>% 
+  row_spec(4:12, background = brewer.pal(8, "Purples")[6]) %>% 
+  column_spec(1:3, color = "white")
 ```
 
+## Key Results
 
-## Priority Tract Scoring Map 
+This report presents a composite score to help prioritize areas, defined by census tracts, for vaccination distribution in alignment with the BRHD vaccination equity strategy priorities. A census tract with a higher composite score values represents an area whose population is more likely to suffer disproportionate harm from COVID-19. 
 
-The map visualizes the composite score from the table above to ease identification of census tract locations. With a list of addresses for current vaccination distribution sites, we could add these to the map for easier visualization.
+* Among the 46 census tracts within the Blue Ridge Health District localities (Albemarle, Charlottesville, Fluvanna, Greene, Louisa, and Nelson), three score especially high on the composite, with values of 3 or above;
 
-```{r, warning = FALSE, message = FALSE,out.width = "90%"}
+* An additional nine census tracts are present in the next highest range, 2 to 3; 
 
-mycol <- colorRampPalette(brewer.pal(8, "YlGnBu"))(10)
-pal <- colorNumeric(palette = mycol,
-                    domain = rankings_geo_indigenous$overall)
+* Of the remaining census tracts, the majority (24) have composite scores between 1 and 2, while 10 are in the lowest range, less than 1, indicating the lowest level of risk.
+
+The map visualizes the composite score values from above for all census tracts to ease identification of census tract locations.[^1] A full table of sortable and searchable results is below. 
+
+```{r, warning = FALSE, message = FALSE,out.width = "95%"}
+
+# mycol <- colorRampPalette(brewer.pal(8, "Purples"))(10)
+# pal <- colorNumeric(palette = mycol,
+#                     domain = rankings_geo_indigenous$overall)
+
+# Four bins to match table
+bins <- c(0, 1, 2, 3, Inf)
+bincolors <- brewer.pal(9, "Purples")[c(3,5,7,9)]
+pal <- colorBin(bincolors, domain = rankings_geo_indigenous$overall, bins = bins)
 
 leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  # addTiles() %>% # to show streets more prominently
+  # addProviderTiles("CartoDB.Positron") %>%
+  addTiles() %>% # to show streets more prominently
   addPolygons(data = rankings_geo_indigenous, 
               fillColor = ~pal(rankings_geo_indigenous$overall), 
               fillOpacity = 0.5, 
@@ -90,7 +94,7 @@ leaflet() %>%
               weight = 2, 
               
               smoothFactor = 0.2, 
-              popup = paste0("Priority Score: ",  round(rankings_geo_indigenous$overall, 2), "<br>",
+              popup = paste0("Composite Score: ",  round(rankings_geo_indigenous$overall, 2), "<br>",
                              rankings_geo_indigenous$NAME, "<br>"
                              ),
               
@@ -103,13 +107,28 @@ leaflet() %>%
             values = rankings_geo_indigenous$overall, 
             position = "bottomright", 
             opacity = 0.5,
-            title = "Vacination Priority Index")
+            title = "Composite Score Values")
 ```
 
 
-## Composite Indicator Values Table 
+## Composite Measure: Background
 
-The measures used to generate the composite score are provided below for reference.
+The [BRHD COVID-19 Vaccination Equity Strategy](https://www.vdh.virginia.gov/content/uploads/sites/196/2021/03/COVID-19-Vaccination-Equity-Strategy-BRHD.pdf) "prioritize[s] vaccination events in neighborhoods and apartment buildings with compounding factors including, at a minimum, low life expectancy, poverty and race and making vaccine available to anyone who lives in that neighborhood." Evidence shows that Black, Hispanic or Latinx, American Indian and Alaska Native and indigenous communities have been disproportionately harmed by COVID-19, in response to structual inequities. In addition, specific comorbid conditions increase the risks of COVID-19. This initial composite score incorporates tract-level demographic information on race and ethnicity, poverty, and life expectancy as well as estimates of the prevalence of medical conditions that increase risk of severe illness. We use data on:
+
+* % Population Black
+* % Population Hispanic or Latinx
+* % Population Indigenous American
+* % Population in Poverty
+* Tract-level Life Expectancy
+* % Population with at-risk health outcomes [CDC](https://www.cdc.gov/coronavirus/2019-ncov/need-extra-precautions/people-with-medical-conditions.html)
+
+Our analyses of these six variables suggest it is reasonable to combine them into one composite score. We create one summary variable that, when ordered, ranks tracts in terms of their priority on the six equity variables. We present that composite score below. 
+
+
+## Composite Measure: Full Table
+The following table provides the overall index, scoring tracts by the percent of residents who are Black, who are Native Amerian or Indigenous, who are Hispanic or Latinx, and who are experiencing poverty along with the average life expectancy of residents within the tract[^2] and the overall prevalance of health outcomes identified by CDC as risk factors: cancer (except skin cancer), chronic kidney disease, chronic obstructive pulmonary disease, diabetes, obesity, and smoking.[^3] 
+
+While each indicator is normalized, to range between 0 and 1, the initial input values are provided in below for easier exploration and reference.
 
 ``` {r, message = FALSE}
 
@@ -124,7 +143,7 @@ tract_dimensions %>%
  rename_with( ~str_to_sentence(str_replace_all(str_replace_all(.x, "_outcome", ""), "_", " ")) , contains("outcome")
         ) %>%
   rename(
-    `Priority Index` = overall,
+    Composite = overall,
     `Total Pop` = totalpopE,
     `% Black` = blackE,
     `% Indigenous` = indigE,
@@ -133,9 +152,12 @@ tract_dimensions %>%
     `Life Expectancy` = lifeexpBRHD
   ) %>%
    mutate(across(where(is.numeric), ~round(.x, 2))) %>%
-  datatable()
-  
-
+  datatable()  %>% formatStyle(
+  "Composite",
+  target = 'row',
+  backgroundColor = styleInterval(c(1, 2, 3), brewer.pal(8, "Purples")[c(4,5,6,7)]),
+  fontWeight = 'bold'
+)
 ```
 
 ## Data Sources
@@ -147,9 +169,10 @@ tract_dimensions %>%
 * Health prevalence outcomes: [CDC Places estimates](https://chronicdata.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Census-Tract-D/cwsq-ngmh)
 
 
+[^1]: With a list of addresses for current vaccination distribution sites, we could add these to the map for easier visualization.
 
+[^2]: Life expectance is reversed before inclusion in the scale such that lower life expectancy values are ranked higher.
 
-
-
+[^3]: Health outcomes are combined into a single index before inclusion in the overall composite score.
 
 
