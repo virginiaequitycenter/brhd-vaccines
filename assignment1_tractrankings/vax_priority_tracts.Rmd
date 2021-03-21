@@ -128,16 +128,16 @@ Our analyses of these six variables suggest it is reasonable to combine them int
 ## Composite Measure: Full Table
 The following table provides the overall index, scoring tracts by the percent of residents who are Black, who are Native Amerian or Indigenous, who are Hispanic or Latinx, and who are experiencing poverty along with the average life expectancy of residents within the tract[^2] and the overall prevalance of health outcomes identified by CDC as risk factors: cancer (except skin cancer), chronic kidney disease, chronic obstructive pulmonary disease, diabetes, obesity, and smoking.[^3] 
 
-While each indicator is normalized, to range between 0 and 1, the initial input values are provided in below for easier exploration and reference.
+While each indicator is normalized in the construction of the composite measure, the initial input values are provided below for easier exploration and reference. The table can be sorted by any of the columns or filtered by locality by adding the locality name in the search bar.
 
 ``` {r, message = FALSE}
 
 tract_dimensions %>%
   left_join(rankings_geo_indigenous %>%
-              select(GEOID, overall, NAME)
+              select(GEOID, overall, NAME, rank_outcomes)
             )  %>%
   arrange(-overall) %>%
-  select(`County Name` = countyname, NAME, overall, everything(), -GEOID, -geometry,
+  select(`County Name` = countyname, NAME, overall, Rank = rank_outcomes, everything(), -GEOID, -geometry,
          -whiteE, -asianE, -multiE, -othraceE, -lifeexpCDC, -cpovrateE) %>%
   separate(NAME, c(NA, "Tract", NA), sep = "Census Tract|,") %>%
  rename_with( ~str_to_sentence(str_replace_all(str_replace_all(.x, "_outcome", ""), "_", " ")) , contains("outcome")
@@ -152,11 +152,13 @@ tract_dimensions %>%
     `Life Expectancy` = lifeexpBRHD
   ) %>%
    mutate(across(where(is.numeric), ~round(.x, 2))) %>%
-  datatable()  %>% formatStyle(
-  "Composite",
-  target = 'row',
-  backgroundColor = styleInterval(c(1, 2, 3), brewer.pal(8, "Purples")[c(4,5,6,7)]),
-  fontWeight = 'bold'
+  datatable(options = list(scrollX = TRUE))  %>% 
+  formatStyle(
+    "Composite",
+    target = 'row',
+    backgroundColor = styleInterval(c(1, 2, 3), brewer.pal(8, "Purples")[c(4,5,6,7)]),
+    color = styleInterval(c(1,2,3), c("black", "black", "white", "white")),
+    fontWeight = 'bold'
 )
 ```
 
