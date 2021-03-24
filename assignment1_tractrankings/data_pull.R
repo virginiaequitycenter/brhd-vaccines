@@ -175,7 +175,6 @@ unique(tract_expectancy$county_fips)
 write_csv(tract_expectancy, "../data/cdc_life_expectancies_brhd_region.csv")
 
 
-
 # CDC Health Outcomes -----------------------------------------------------
 # From the CDC Places metrics https://chronicdata.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Census-Tract-D/cwsq-ngmh
 health_outcomes <- 
@@ -297,15 +296,15 @@ left_join(
     select(-locationid)
 ) %>%
   select(countyname, GEOID, everything()) %>%
-  filter(
-
-    !GEOID %in% c(      # Censoring per Recommendation by BRHD Life Expectancy estimates
-      "51003010901",   
-      "51003010903",  
-      "51003010902",  
-      "51003010202"   
-      )
+filter(
+  !GEOID %in% c(
+    # Censoring per Recommendation by BRHD Life Expectancy estimates
+    #"51003010901",
+    #"51003010902",
+    #"51003010202",
+    "51003010903"
   )
+)
 
 
 write_csv(tract_prioritization_facts, "../data/tract_dimensions.csv")

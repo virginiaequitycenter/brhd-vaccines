@@ -203,7 +203,7 @@ cor(final_rankings$overall, final_rankings$overall_no_outcomes, method = "spearm
 # They correlate at 0.9239
 
 
-write_csv(final_rankings, path = "final_rankings.csv")
+write_csv(final_rankings, file = "final_rankings.csv")
 
 
 
@@ -294,7 +294,7 @@ min(final_rankings_indigenous$overall_no_outcomes) # 0.2138
 cor(final_rankings_indigenous$overall, final_rankings_indigenous$overall_no_outcomes, method = "spearman") 
 # They correlate at 0.9308
 
-write_csv(final_rankings_indigenous, path = "final_rankings_indigenous.csv")
+write_csv(final_rankings_indigenous, file = "final_rankings_indigenous.csv")
 
 
 
