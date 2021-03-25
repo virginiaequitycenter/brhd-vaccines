@@ -92,7 +92,7 @@ fa(tract_indicators[,-1], nfactors=1, rotate="promax", fm="ml", SMC=TRUE) # It i
 fa(tract_indicators[,-1], nfactors=2, rotate="promax", fm="wls", SMC=TRUE) # two factors # this goes heywood too1! WHAT
 
 
-final_rankings_pct_from <- 
+final_rankings_pct_across <- 
   tract_indicators %>%
   mutate(overall = blackE + ltnxE + indigE + povrateE + lifeexpBRHD + health_outcomes + pov65E) %>%
   arrange(
@@ -109,10 +109,10 @@ final_rankings_pct_from
 # you need the things from the other script -------------------------------
 compare_ranks <- 
   final_rankings_agepov %>%
-  select(GEOID, pct_of = rank_outcomes) %>%
+  select(GEOID, pct_within = rank_outcomes) %>%
   left_join(
-    final_rankings_pct_from %>%
-      select(GEOID, pct_from = rank_outcomes)
+    final_rankings_pct_across %>%
+      select(GEOID, pct_across = rank_outcomes)
   )
 
 
