@@ -19,6 +19,7 @@ setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/brhd-vaccines/assignme
 library(tidyverse)
 library(extrafont)
 library(psych)
+library(sf)
 loadfonts() ## Load in the fonts I want to use
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
@@ -294,7 +295,7 @@ min(final_rankings_indigenous$overall_no_outcomes) # 0.2138
 cor(final_rankings_indigenous$overall, final_rankings_indigenous$overall_no_outcomes, method = "spearman") 
 # They correlate at 0.9308
 
-write_csv(final_rankings_indigenous, file = "final_rankings_indigenous.csv")
+write_csv(final_rankings_indigenous, path = "final_rankings_indigenous.csv")
 
 
 
@@ -451,6 +452,23 @@ rankings_geo_agepov <-
 
 save(rankings_geo_agepov, file = "geo_rankings_agepov.Rdata")
 
+
+# Comparison of rankings --------------------------------------------------
+
+compare_ranks <- 
+final_rankings_agepov %>%  left_join(
+final_rankings_indigenous %>%
+  select(GEOID, usualrank = rank_outcomes)
+
+)
+
+compare_ranks %>%
+mutate(dif_rank = rank_outcomes - usualrank) %>%
+  arrange(dif_rank) 
+
+
+compare_ranks%>%
+  arrange(rank_outcomes)
 
 
 
