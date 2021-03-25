@@ -118,7 +118,11 @@ compare_ranks <-
 
 compare_ranks %>%
   left_join(tract_dimensions) %>%
-  View()
+  select(countyname, GEOID, pct_within, pct_across, totalpopE, whiteE, blackE, indigE, asianE, multiE, ltnxE, povrateE, pov65E, age65E, lifeexpBRHD) %>%
+  left_join(prob_atleast_one %>%
+              select(GEOID, health = perc_atleast_one)) %>%
+  kable( format = "rst")
+
 
 
 
