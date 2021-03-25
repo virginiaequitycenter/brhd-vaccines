@@ -58,9 +58,70 @@ prob_atleast_one <-
 
 
 # change percents into actual numbers -----------------------------------
-tract_dimensions %>%
-  left_join(prob_atleast_one)
+perc_factors <-
+c(names(tract_dimensions)[c(4:14, 16:23)], "perc_atleast_one")
 
+revised_tract_dims <-
+tract_dimensions %>%
+  left_join(prob_atleast_one)  %>%
+  mutate(across(perc_factors, ~totalpopE*.x/100)) %>%
+  mutate(across(perc_factors, ~(.x/sum(.x)))*100 - (100/n())
+         ) %>%
+  select(-lifeexpCDC)
+
+tract_indicators <- 
+  revised_tract_dims %>%
+  select(GEOID,
+         blackE,
+          indigE,  
+         ltnxE,
+         povrateE,
+         lifeexpBRHD,
+         health_outcomes = perc_atleast_one,
+         pov65E
+  ) %>%
+  mutate(across(-GEOID,
+                ~ (.x - min(.x)) / (max(.x) - min(.x)))) %>%
+  mutate(lifeexpBRHD = 1 - lifeexpBRHD)
+
+
+alpha(tract_indicators[,-1], check.keys = TRUE)
+principal(tract_indicators[,-1], nfactors=1, rotate="none", scores=TRUE)
+
+fa(tract_indicators[,-1], nfactors=1, rotate="promax", fm="ml", SMC=TRUE) # It is not a 1 factor solution anymore
+fa(tract_indicators[,-1], nfactors=2, rotate="promax", fm="wls", SMC=TRUE) # two factors # this goes heywood too1! WHAT
+
+
+final_rankings_pct_across <- 
+  tract_indicators %>%
+  mutate(overall = blackE + ltnxE + indigE + povrateE + lifeexpBRHD + health_outcomes + pov65E) %>%
+  arrange(
+    desc(overall)
+  ) %>%
+  mutate(rank_outcomes = 1:n())  
+
+
+final_rankings_pct_from
+
+
+
+
+# you need the things from the other script -------------------------------
+compare_ranks <- 
+  final_rankings_agepov %>%
+  select(GEOID, pct_within = rank_outcomes) %>%
+  left_join(
+    final_rankings_pct_across %>%
+      select(GEOID, pct_across = rank_outcomes)
+  )
+
+
+compare_ranks %>%
+  left_join(tract_dimensions) %>%
+  select(countyname, GEOID, pct_within, pct_across, totalpopE, whiteE, blackE, indigE, asianE, multiE, ltnxE, povrateE, pov65E, age65E, lifeexpBRHD) %>%
+  left_join(prob_atleast_one %>%
+              select(GEOID, health = perc_atleast_one)) %>%
+  kable( format = "rst")
 
 
 
