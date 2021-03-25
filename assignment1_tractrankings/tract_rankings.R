@@ -129,6 +129,7 @@ pca = pca.outcomes$scores[,1]
 
 # they describe very similar phenomena
 cor(combine_outcomes$perc_atleast_one, combine_outcomes$pca,  method = "spearman") # 0.9482
+
 normed_outcomes <-
 combine_outcomes %>%
   mutate(
@@ -464,11 +465,12 @@ final_rankings_indigenous %>%
 
 compare_ranks %>%
 mutate(dif_rank = rank_outcomes - usualrank) %>%
-  arrange(dif_rank) 
+  arrange(dif_rank) %>%
+  summarize(mean(dif_rank), sd(dif_rank))
 
 
 compare_ranks%>%
-  arrange(rank_outcomes)
+  arrange(rank_outcomes) %>% View()
 
 
 
