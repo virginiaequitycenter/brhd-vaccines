@@ -203,7 +203,7 @@ cor(final_rankings$overall, final_rankings$overall_no_outcomes, method = "spearm
 # They correlate at 0.9239
 
 
-write_csv(final_rankings, file = "final_rankings.csv")
+write_csv(final_rankings, path = "final_rankings.csv")
 
 
 
@@ -329,10 +329,6 @@ rankings_geo_indigenous <-
 save(rankings_geo_indigenous, file = "geo_rankings_indigenous.Rdata")
 
 
-
-
-
-
 tibble(
 GEOID = final_rankings_indigenous$GEOID,
 indigenous = final_rankings_indigenous$rank_outcomes
@@ -342,6 +338,122 @@ indigenous = final_rankings_indigenous$rank_outcomes
       select(GEOID, non_indigenous = rank_outcomes)
   ) %>%
   View()
+
+
+
+# Try the rankings again but with Age -------------------------------------
+
+normed_metrics <- 
+  tract_dimensions %>%
+  select(GEOID,
+         blackE,
+         indigE,  # put indigenous back in it 
+         ltnxE,
+         age65E,
+         povrateE,
+         lifeexpBRHD  # this one needs to be reversed
+  ) %>%
+  mutate(across(-GEOID,
+                ~ (.x - min(.x)) / (max(.x) - min(.x)))) %>%
+  mutate(lifeexpBRHD = 1 - lifeexpBRHD) %>%
+  left_join(
+    normed_outcomes %>%
+      select(GEOID, 
+             health_outcomes = perc_atleast_one
+      )
+  )
+
+alpha(normed_metrics[,-1], check.keys = TRUE)
+principal(normed_metrics[,-1], nfactors=2, rotate="none", scores=TRUE)
+
+fa(normed_metrics[,-1], nfactors=1, rotate="promax", fm="ml", SMC=TRUE) # It is not a 1 factor solution anymore
+fa(normed_metrics[,-1], nfactors=2, rotate="promax", fm="ml", SMC=TRUE) # It could be a 2 factor now with health outcomes, latinx, & age in one factor # This is overfit tho
+fa(normed_metrics[,-1], nfactors=3, rotate="promax", fm="ml", SMC=TRUE) # this should not exist. It goes heywood
+
+fa(normed_metrics[,-1], nfactors=2, rotate="promax", fm="wls", SMC=TRUE) # This corrects the overfit. Yes. Age is completely reversed. 
+
+
+# Do poverty age instead of age -------------------------------------------
+normed_metrics <- 
+  tract_dimensions %>%
+  select(GEOID,
+         blackE,
+         indigE,  # put indigenous back in it 
+         ltnxE,
+         pov65E,
+         povrateE,
+         lifeexpBRHD  # this one needs to be reversed
+  ) %>%
+  mutate(across(-GEOID,
+                ~ (.x - min(.x)) / (max(.x) - min(.x)))) %>%
+  mutate(lifeexpBRHD = 1 - lifeexpBRHD) %>%
+  left_join(
+    normed_outcomes %>%
+      select(GEOID, 
+             health_outcomes = perc_atleast_one
+      )
+  )
+
+alpha(normed_metrics[,-1], check.keys = TRUE)
+principal(normed_metrics[,-1], nfactors=2, rotate="none", scores=TRUE) # this could convincingly be 1 factor, maybe. 
+
+fa(normed_metrics[,-1], nfactors=1, rotate="promax", fm="ml", SMC=TRUE) # 
+fa(normed_metrics[,-1], nfactors=2, rotate="promax", fm="ml", SMC=TRUE) # Overfit, really need wls
+
+fa(normed_metrics[,-1], nfactors=1, rotate="promax", fm="wls", SMC=TRUE) # this could work -- life expectancy is messed up tho
+fa(normed_metrics[,-1], nfactors=2, rotate="promax", fm="wls", SMC=TRUE) # ehhh. 
+
+
+final_rankings_agepov  <- 
+  normed_metrics %>%
+  mutate(overall = blackE + ltnxE + indigE + povrateE + lifeexpBRHD + health_outcomes + pov65E) %>%
+  arrange(
+    desc(overall)
+  ) %>%
+  mutate(rank_outcomes = 1:n())  
+
+max(final_rankings_agepov$overall) # 3.81
+min(final_rankings_agepov$overall) # 0.448
+# not quite the variance we would hope for, but this works! 
+(max(final_rankings_agepov$overall) - min(final_rankings_agepov$overall))/7  # uses 0.5896 of its possible range
+
+
+write_csv(final_rankings_agepov, path = "final_rankings_agepov.csv")
+
+
+
+# Add in Geo with age poverty ----------------------------------------------
+
+ccodes <- read_csv("../data/county_codes.csv") %>%
+  filter(
+    grepl(
+      "Charlottesville|Albemarle|Fluvanna|Greene|Louisa|Nelson",
+      name
+    )
+  )
+
+region <- ccodes$code
+
+tract_geos <- get_acs(geography = "tract",
+                      variables = "DP05_0001",
+                      state = "VA", 
+                      county = region,
+                      survey = "acs5", 
+                      year = 2019, 
+                      output = "wide",
+                      geometry = TRUE)
+
+rankings_geo_agepov <- 
+  final_rankings_agepov %>%
+  mutate(GEOID = as.character(GEOID)) %>%
+  left_join(tract_geos) %>%
+  st_as_sf()
+
+save(rankings_geo_agepov, file = "geo_rankings_agepov.Rdata")
+
+
+
+
 
 
 

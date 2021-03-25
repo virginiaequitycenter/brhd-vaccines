@@ -299,9 +299,16 @@ tract_19 %>%
   left_join(
     
     tract_data_poverty %>%
-      select(GEOID, povrateE, cpovrateE)
+      select(GEOID, povrateE, cpovrateE, pov65E)
     
   ) %>% left_join(
+    
+    tract_age65 %>%
+      select(GEOID, age65E)
+    
+  ) %>%
+
+left_join(
     
     brhd_le %>%
       select(GEOID, lifeexpBRHD = lifeexp)
