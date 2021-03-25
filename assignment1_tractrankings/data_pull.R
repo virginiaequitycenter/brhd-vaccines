@@ -95,11 +95,31 @@ write_csv(tract_19, path = "../data/brhd_race_ethnicity.csv")
 
 
 
+# Tract Age ---------------------------------------------------------------
+acs5_2019_sub <- load_variables(2019, "acs5/subject", cache = TRUE)
+
+tract_age <- get_acs(geography = "tract", 
+                     table = "S0101", 
+                     state = "VA", 
+                     county = region, 
+                     survey = "acs5", 
+                     year = 2019)
+
+
+tract_age65 <- tract_age %>% 
+  filter(variable == "S0101_C02_030") %>% 
+  rename(age65E = estimate,
+         age65M = moe) %>% 
+  select(-variable)
+
+
+
 # Pull Poverty Rate -------------------------------------------------------
 
 varlist_s = c("S1701_C03_001", # povrate
-              "S1701_C03_002"   # cpovrate
-              )   
+              "S1701_C03_002",# cpovrate
+              "S1701_C03_010" # senior
+)   
 
 
 # pull variables
@@ -116,14 +136,15 @@ tract_data_s <- get_acs(geography = "tract",
 # rename variables
 names(tract_data_s) = c("GEOID", "NAME",
                         "povrateE", "povrateM",
-                        "cpovrateE", "cpovrateM"
-                        )
+                        "cpovrateE", "cpovrateM",
+                        "pov65E", "pov65M"
+                        
+)
 
 tract_data_poverty <- 
-tract_data_s %>% 
+  tract_data_s %>% 
   mutate(povrateE = ifelse(GEOID == "51003010903", NA_integer_, povrateE)
   )
-
 
 
 # Pull BRHD Life Expectancies for the Region ------------------------------
