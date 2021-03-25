@@ -1,0 +1,76 @@
+---
+title: "Tract-Level Composite Scores"
+date: "3/25/2021"
+#output: html_document
+header-includes:
+ - \usepackage[default]{sourcesanspro}
+ - \usepackage[T1]{fontenc}
+mainfont: SourceSansPro
+fontsize: 11pt
+output: 
+  html_document:
+    df_print: kable
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(extrafont)
+library(knitr)
+library(kableExtra)
+library(rmarkdown)
+library(DT)
+library(leaflet)
+loadfonts
+
+load("compare_scores.Rdata")
+compare_scores <- compare_scores %>% 
+  mutate(GEOID = as.character(GEOID))
+
+tract_dimensions <- read_csv("../data/tract_dimensions.csv") %>%
+  mutate(GEOID = as.character(GEOID))
+
+```
+
+
+## Composite Comparisons
+
+The following table provides comparisons in the tract composite score and rank for two versions of the tract equity index. The original score (overall_orig) included measures of
+
+* % Population Black, % population Hispanic or LatinX, and % Native American or Indigenous -- these represent populations that have experienced illness and severe illness from COVID-19 at disproportionate rates.
+
+* % Population in Poverty -- this is included to account for the higher risk of transmission among populations more likely to live in closer quarters, have a high rate of frontline workers, and with historically less access to health resources, among other structural issues.
+
+* Tract-level Life Expectancy and % population with at-rish health outcomes -- these help capture the health-related conditions that increase the risk of illness due to COVID-19.
+
+We generated two more version of the composite index: 
+
+1. one including the % of the tract population over 65 (overall_age65), though this measure was negatively correlated with the remaining dimensions; 
+2. one including the % of the over 65 population in poverty (overall_pov65). This latter measure is intended to incorporate the senior population less likely to be vaccinated at this stage.
+
+The rank correlations of between the initial index and both variations are high
+```{r}
+scores <- compare_scores %>% 
+  select(overall_orig, overall_pov65, overall_age65)
+cor(scores, method = "spearman")
+```
+
+A table allowing for easier comparison across these three measures is below. Note that the input measures to the right have been normalized across the tracts and do not represent the initial estimated values.
+
+We can easily update the fuller presentation with any of these in accordance with your knowledge and understanding of the district and our current vaccination status.
+
+``` {r, message = FALSE}
+
+compare_scores %>% 
+  left_join(tract_dimensions %>% 
+              select(GEOID, countyname)) %>% 
+  arrange(-overall_orig) %>% 
+  mutate(tract = str_sub(GEOID, 6,11)) %>% 
+  select(countyname, tract, everything()) %>% 
+  select(-GEOID) %>% 
+  datatable(options = list(scrollX = TRUE)) %>% 
+  formatRound(3:5, 2) %>% 
+  formatRound(9:15, 3)
+
+```

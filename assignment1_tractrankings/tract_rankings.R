@@ -375,6 +375,14 @@ fa(normed_metrics[,-1], nfactors=3, rotate="promax", fm="ml", SMC=TRUE) # this s
 fa(normed_metrics[,-1], nfactors=2, rotate="promax", fm="wls", SMC=TRUE) # This corrects the overfit. Yes. Age is completely reversed. 
 
 
+final_rankings_age65  <- 
+  normed_metrics %>%
+  mutate(overall = blackE + ltnxE + indigE + povrateE + lifeexpBRHD + health_outcomes + age65E) %>%
+  arrange(
+    desc(overall)
+  ) %>%
+  mutate(rank_outcomes = 1:n())  
+
 # Do poverty age instead of age -------------------------------------------
 normed_metrics <- 
   tract_dimensions %>%
@@ -474,14 +482,34 @@ compare_ranks%>%
 
 
 
+# Generate a table to present out
+compare_scores <- 
+  final_rankings_agepov %>% 
+  select(GEOID, overall_pov65 = overall, rank_pov65 = rank_outcomes, everything()) %>% 
+  left_join(
+    final_rankings_indigenous %>%
+      select(GEOID, overall_orig = overall, rank_orig = rank_outcomes)
+  ) %>% 
+  left_join(
+    final_rankings_age65 %>% 
+      select(GEOID, overall_age65 = overall, rank_age65 = rank_outcomes)
+  ) %>% 
+  select(GEOID, overall_orig, overall_pov65, overall_age65, rank_orig, rank_pov65, 
+         rank_age65, everything())
 
 
+save(compare_scores, file = "compare_scores.Rdata")
 
+compare_scores %>% 
+  left_join(tract_dimensions %>% 
+              select(GEOID, countyname)) %>% 
+  arrange(-overall_orig) %>% 
+  mutate(tract = str_sub(GEOID, 6,11)) %>% 
+  select(countyname, tract, everything()) %>% 
+  select(-GEOID)
 
+cor(compare_scores$overall_orig, compare_scores$overall_pov65, method = "spearman") 
 
-
-
-
-
-
-
+scores <- compare_scores %>% 
+  select(overall_orig, overall_pov65, overall_age65)
+cor(scores, method = "spearman")
