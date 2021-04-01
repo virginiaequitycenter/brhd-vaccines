@@ -121,6 +121,7 @@ compare_ranks %>%
   select(countyname, GEOID, pct_within, pct_across, totalpopE, whiteE, blackE, indigE, asianE, multiE, ltnxE, povrateE, pov65E, age65E, lifeexpBRHD) %>%
   left_join(prob_atleast_one %>%
               select(GEOID, health = perc_atleast_one)) %>%
+  arrange(pct_across) %>%
   kable( format = "rst")
 
 
